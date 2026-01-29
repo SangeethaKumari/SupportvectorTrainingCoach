@@ -1,0 +1,15 @@
+langchain
+langchain-google-genai
+langgraph
+qdrant-client
+langchain-qdrant
+pypdf
+pymupdf
+fastapi
+uvicorn
+python-dotenv
+tiktoken
+pydantic
+langchain-community
+langchain-openai
+langchainhub
