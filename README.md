@@ -67,7 +67,11 @@ cd ..
 ```
 
 ### 2. Environment Configuration
-Create a `.env` file in the root directory:
+1. Copy the example environment file:
+```bash
+cp .env.example .env
+```
+2. Open `.env` and update your Gemini API key:
 ```env
 GOOGLE_API_KEY=your_gemini_api_key_here
 COLLECTION_NAME=llm_course_material
