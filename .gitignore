@@ -36,7 +36,8 @@ Thumbs.db
 
 # Databases
 qdrant_db/
-data/
+data/*.pdf
+!data/.gitkeep
 
 # Testing
 coverage/

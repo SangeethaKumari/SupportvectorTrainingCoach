@@ -52,25 +52,46 @@ graph TD
 
 ## 📦 Installation & Setup
 
-### 1. Project Ingestion
-Process your course PDFs and store them in the vector database:
+### 1. Clone and Install
 ```bash
+git clone https://github.com/SangeethaKumari/SupportvectorTrainingCoach.git
+cd SupportvectorTrainingCoach
+
+# Setup Backend
 pip install -r backend/requirements.txt
-python -m backend.ingestion
+
+# Setup Frontend
+cd frontend
+npm install
+cd ..
 ```
 
-### 2. Start Backend
-Run the FastAPI server:
+### 2. Environment Configuration
+Create a `.env` file in the root directory:
+```env
+GOOGLE_API_KEY=your_gemini_api_key_here
+COLLECTION_NAME=llm_course_material
+```
+
+### 3. Data Ingestion
+To populate the chatbot with knowledge:
+1. Place your course PDF files inside the `data/` folder.
+2. Run the ingestion script:
+```bash
+python -m backend.ingestion
+```
+*Note: This will create a `qdrant_db/` folder locally which stores the processed embeddings.*
+
+### 4. Running the Application
+**Backend:**
 ```bash
 export PYTHONPATH=$PYTHONPATH:.
 python -m backend.main
 ```
 
-### 3. Start Frontend
-Run the React application:
+**Frontend:**
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
