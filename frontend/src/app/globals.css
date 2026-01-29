@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6366f1;
+  --color-accent: #818cf8;
+  --color-muted: #2a2e37;
+  --color-background: #0f1115;
+  --color-card: #1a1d23;
+}
+
+:root {
+  --background: #0f1115;
+  --foreground: #ececec;
+  --card: #1a1d23;
+  --card-foreground: #ececec;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --accent: #818cf8;
+  --muted: #2a2e37;
+  --muted-foreground: #9ca3af;
+  --border: #2d3139;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background-color: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-bubble-agent {
+  background-color: rgba(42, 46, 55, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1rem;
+  padding: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.625;
+}
+
+.chat-bubble-user {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: 1rem;
+  padding: 1rem;
+  font-size: 0.875rem;
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.2);
+}
+
+.thought-panel {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-left-width: 2px;
+  border-color: rgba(99, 102, 241, 0.4);
+  padding-left: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2d3139;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f4451;
+}
