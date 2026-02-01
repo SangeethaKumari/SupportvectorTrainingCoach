@@ -1,0 +1,1 @@
+Vercel is looking inside the frontend folder correctly!
