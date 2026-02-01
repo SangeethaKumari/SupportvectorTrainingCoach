@@ -234,7 +234,7 @@ def grade_generation_v_documents_and_question(state):
             return "useful"
         return "not grounded"
 
-# --- Graph Build ---x
+# --- Graph Build ---
 
 workflow = StateGraph(GraphState)
 
