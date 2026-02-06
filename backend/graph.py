@@ -48,7 +48,7 @@ def retrieve(state):
     else:
         client = QdrantClient(path="./qdrant_db")
         
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     vectorstore = QdrantVectorStore(
         client=client,
         collection_name=os.getenv("COLLECTION_NAME"),

@@ -32,7 +32,7 @@ def ingest_pdfs(data_dir="./data"):
         connection_args = {"path": "./qdrant_db"}
     
     # 2. Setup Embeddings
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     
     # 3. Load and Split Documents
     all_docs = []
