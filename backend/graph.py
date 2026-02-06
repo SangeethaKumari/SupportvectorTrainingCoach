@@ -39,7 +39,15 @@ def retrieve(state):
     thoughts = state.get("thoughts", [])
     thoughts.append("Searching course materials for relevant context...")
     
-    client = QdrantClient(path="./qdrant_db")
+    # Use Cloud Qdrant if URL is provided, otherwise fallback to local path
+    qdrant_url = os.getenv("QDRANT_URL")
+    qdrant_api_key = os.getenv("QDRANT_API_KEY")
+    
+    if qdrant_url and "localhost" not in qdrant_url:
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+    else:
+        client = QdrantClient(path="./qdrant_db")
+        
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vectorstore = QdrantVectorStore(
         client=client,

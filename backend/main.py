@@ -3,7 +3,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-from backend.graph import app as graph_app
+try:
+    from backend.graph import app as graph_app
+except ImportError:
+    from graph import app as graph_app
 import uvicorn
 from dotenv import load_dotenv
 
