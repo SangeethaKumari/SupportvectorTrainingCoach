@@ -39,26 +39,42 @@ def retrieve(state):
     thoughts = state.get("thoughts", [])
     thoughts.append("Searching course materials for relevant context...")
     
-    # Use Cloud Qdrant if URL is provided, otherwise fallback to local path
-    qdrant_url = os.getenv("QDRANT_URL")
-    qdrant_api_key = os.getenv("QDRANT_API_KEY")
-    
-    if qdrant_url and "localhost" not in qdrant_url:
-        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-    else:
-        client = QdrantClient(path="./qdrant_db")
+    try:
+        # Use Cloud Qdrant if URL is provided, otherwise fallback to local path
+        qdrant_url = os.getenv("QDRANT_URL")
+        qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        collection_name = os.getenv("COLLECTION_NAME")
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+
+        if not collection_name:
+            raise ValueError("COLLECTION_NAME environment variable is missing!")
+        if not google_api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is missing!")
+
+        print(f"Connecting to Qdrant at: {qdrant_url if qdrant_url else 'local path'}")
         
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-    vectorstore = QdrantVectorStore(
-        client=client,
-        collection_name=os.getenv("COLLECTION_NAME"),
-        embedding=embeddings,
-    )
-    retriever = vectorstore.as_retriever()
-    documents = retriever.invoke(question)
-    # Ensure original_question is set from the start
-    orig_q = state.get("original_question") or question
-    return {"documents": documents, "thoughts": thoughts, "question": question, "original_question": orig_q}
+        if qdrant_url and "localhost" not in qdrant_url:
+            client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        else:
+            client = QdrantClient(path="./qdrant_db")
+            
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
+        vectorstore = QdrantVectorStore(
+            client=client,
+            collection_name=collection_name,
+            embedding=embeddings,
+        )
+        retriever = vectorstore.as_retriever()
+        documents = retriever.invoke(question)
+        
+        # Ensure original_question is set from the start
+        orig_q = state.get("original_question") or question
+        return {"documents": documents, "thoughts": thoughts, "question": question, "original_question": orig_q}
+        
+    except Exception as e:
+        print(f"❌ Error in retrieve node: {str(e)}")
+        # Provide a graceful fallback or re-raise to see the full Traceback in Render
+        raise e
 
 def grade_documents(state):
     """Determines whether the retrieved documents are relevant."""
