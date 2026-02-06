@@ -15,6 +15,15 @@ def ingest_pdfs(data_dir="./data"):
     qdrant_api_key = os.getenv("QDRANT_API_KEY")
     collection_name = os.getenv("COLLECTION_NAME", "llm_course_material")
 
+    # Auto-adjust data_dir if it's not found or empty (e.g. if running from inside backend/ folder)
+    # We check if the current data_dir has PDFs, if not, we check one level up.
+    has_pdfs = os.path.exists(data_dir) and any(f.endswith(".pdf") for f in os.listdir(data_dir))
+    
+    if not has_pdfs and os.path.exists("../data"):
+        if any(f.endswith(".pdf") for f in os.listdir("../data")):
+            data_dir = "../data"
+            print(f"📂 Found PDF files in {data_dir}")
+
     if qdrant_url and "localhost" not in qdrant_url:
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         connection_args = {"url": qdrant_url, "api_key": qdrant_api_key}
@@ -23,7 +32,7 @@ def ingest_pdfs(data_dir="./data"):
         connection_args = {"path": "./qdrant_db"}
     
     # 2. Setup Embeddings
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
     
     # 3. Load and Split Documents
     all_docs = []
@@ -60,12 +69,11 @@ def ingest_pdfs(data_dir="./data"):
     # Close the client before VectorStore opens it
     client.close()
 
-    # 5. Index into Qdrant
-    print(f"🚀 Upserting to Qdrant...")
     QdrantVectorStore.from_documents(
         chunks,
         embeddings,
         collection_name=collection_name,
+        batch_size=64, # Smaller batches for more reliable cloud uploading
         **connection_args
     )
     print("✨ Ingestion complete!")
