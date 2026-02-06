@@ -59,14 +59,9 @@ def ingest_pdfs(data_dir="./data"):
     chunks = text_splitter.split_documents(all_docs)
     print(f"✅ Split into {len(chunks)} chunks.")
 
-    # 4. Create collection if not exists
-    if not client.collection_exists(collection_name):
-        print(f"🛠 Creating collection: {collection_name}")
-        client.create_collection(
-            collection_name=collection_name,
-            vectors_config=models.VectorParams(size=768, distance=models.Distance.COSINE),
-        )
-    # Close the client before VectorStore opens it
+    # 4. Index into Qdrant
+    print(f"� Upserting to Qdrant (this may take a few minutes)...")
+    # Close the client before VectorStore opens its own connection
     client.close()
 
     QdrantVectorStore.from_documents(
@@ -74,6 +69,7 @@ def ingest_pdfs(data_dir="./data"):
         embeddings,
         collection_name=collection_name,
         batch_size=64, # Smaller batches for more reliable cloud uploading
+        force_recreate=True, # This fixes the 'dimension mismatch' error
         **connection_args
     )
     print("✨ Ingestion complete!")
