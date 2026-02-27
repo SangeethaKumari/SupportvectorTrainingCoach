@@ -1,6 +1,6 @@
 # SupportVector Training Coach 🤖📚
 
-An **Agentic RAG (Retrieval-Augmented Generation)** chatbot designed to act as a specialized technical tutor for the "Large Language Models" course. Built with **LangGraph**, **Gemini 2.0**, and **Qdrant**.
+### An **Agentic RAG (Retrieval-Augmented Generation)** chatbot designed to act as a specialized technical tutor for the "Large Language Models & AI Agents" course. Built with **LangGraph**, **Gemini 3.0**, and **Qdrant**.
 
 ## 🏗 Architecture Diagram
 
@@ -44,7 +44,7 @@ graph TD
 
 ## 🛠 Tech Stack
 
-- **LLM**: Google Gemini 2.0 Flash
+- **LLM**: Google Gemini 3.0 Flash (preview)
 - **Orchestration**: LangGraph / LangChain
 - **Vector DB**: Qdrant (Running in local path mode)
 - **Frontend**: Next.js 15, Tailwind CSS, Framer Motion

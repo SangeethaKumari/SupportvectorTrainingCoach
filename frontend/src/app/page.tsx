@@ -27,7 +27,7 @@ export default function ChatbotPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'agent',
-      content: "Hello! I'm your SupportVector Training Coach. I'm trained on your course materials and will provide verified, hallucination-free answers. What would you like to know about the LLM course?",
+      content: "Hello! I'm your SupportVector Training Coach. I'm trained on your course materials and will provide verified, hallucination-free answers. What would you like to know about the LLM and AI Agents course?",
     }
   ]);
   const [input, setInput] = useState('');
@@ -49,6 +49,10 @@ export default function ChatbotPage() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
 
+    // Initial message for the agent that we will update as the stream flows
+    const agentMsgIdx = messages.length + 1;
+    setMessages(prev => [...prev, { role: 'agent', content: '', thoughts: [] }]);
+
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const response = await fetch(`${API_URL}/chat`, {
@@ -59,20 +63,66 @@ export default function ChatbotPage() {
 
       if (!response.ok) throw new Error('Failed to connect to AI server');
 
-      const data = await response.json();
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('ReadableStream not supported');
 
-      setMessages(prev => [...prev, {
-        role: 'agent',
-        content: data.answer,
-        thoughts: data.thoughts,
-        sources: data.sources
-      }]);
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.replace('data: ', '').trim();
+            if (jsonStr === '[DONE]') break;
+
+            try {
+              const data = JSON.parse(jsonStr);
+
+              setMessages(prev => {
+                const newMessages = [...prev];
+                // ALWAYS update the very last message if it's from the agent
+                const lastIdx = newMessages.length - 1;
+                if (lastIdx < 0 || newMessages[lastIdx].role !== 'agent') return prev;
+
+                const msg = { ...newMessages[lastIdx] };
+
+                if (data.type === 'token') {
+                  msg.content += data.token;
+                } else if (data.type === 'thought') {
+                  if (!msg.thoughts?.includes(data.thought)) {
+                    msg.thoughts = [...(msg.thoughts || []), data.thought];
+                  }
+                } else if (data.type === 'metadata') {
+                  if (data.sources) msg.sources = data.sources;
+                  if (data.thoughts) msg.thoughts = data.thoughts;
+                }
+
+                newMessages[lastIdx] = msg;
+                return newMessages;
+              });
+            } catch (err) {
+              console.error("Error parsing stream chunk:", err, jsonStr);
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, {
-        role: 'agent',
-        content: "Sorry, I encountered an error connecting to my brain. Please ensure the backend server is running."
-      }]);
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastIdx = newMessages.length - 1;
+        if (lastIdx >= 0 && newMessages[lastIdx].role === 'agent') {
+          newMessages[lastIdx].content = "Sorry, I encountered an error connecting to my brain. Please ensure the backend server is running.";
+        }
+        return newMessages;
+      });
     } finally {
       setIsLoading(false);
     }
@@ -206,7 +256,7 @@ export default function ChatbotPage() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask a technical question about the LLM course..."
+              placeholder="Ask a technical question about the LLM and AI Agents course..."
               className="w-full bg-[#1a1d23] border border-white/5 rounded-2xl py-4 pl-6 pr-16 text-sm focus:outline-none focus:border-primary/40 focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-muted-foreground/50 shadow-2xl"
             />
             <button
@@ -218,7 +268,7 @@ export default function ChatbotPage() {
             </button>
           </form>
           <p className="text-[10px] text-center text-muted-foreground mt-4 font-medium uppercase tracking-widest opacity-40">
-            Powered by Gemini 2.0 & LangGraph • Zero Hallucination Mode Active
+            Powered by Gemini 3.0 & LangGraph • Zero Hallucination Mode Active
           </p>
         </div>
       </footer>

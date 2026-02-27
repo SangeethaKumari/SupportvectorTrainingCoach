@@ -32,7 +32,7 @@ class GradeAnswer(BaseModel):
 
 # --- Nodes Implementation ---
 
-def retrieve(state):
+async def retrieve(state):
     """Retreive documents from Qdrant"""
     print("---RETRIEVING---")
     question = state["question"]
@@ -65,7 +65,7 @@ def retrieve(state):
             embedding=embeddings,
         )
         retriever = vectorstore.as_retriever()
-        documents = retriever.invoke(question)
+        documents = await retriever.ainvoke(question)
         
         # Ensure original_question is set from the start
         orig_q = state.get("original_question") or question
@@ -73,10 +73,9 @@ def retrieve(state):
         
     except Exception as e:
         print(f"❌ Error in retrieve node: {str(e)}")
-        # Provide a graceful fallback or re-raise to see the full Traceback in Render
         raise e
 
-def grade_documents(state):
+async def grade_documents(state):
     """Determines whether the retrieved documents are relevant."""
     print("---CHECKING RELEVANCE---")
     question = state["question"]
@@ -84,7 +83,7 @@ def grade_documents(state):
     thoughts = state["thoughts"]
     thoughts.append("Grading retrieved segments for relevance...")
     
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+    llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0)
     structured_llm_grader = llm.with_structured_output(GradeDocuments)
     
     system = """You are a technical grader assessing relevance. 
@@ -103,10 +102,16 @@ def grade_documents(state):
     orig_q = state.get("original_question", question)
     
     filtered_docs = []
-    for d in documents:
-        score = retrieval_grader.invoke({"question": orig_q, "document": d.page_content})
-        if score.binary_score == "yes":
-            filtered_docs.append(d)
+    for i, d in enumerate(documents):
+        print(f"---GRADING DOCUMENT {i+1}/{len(documents)}---")
+        try:
+            score = await retrieval_grader.ainvoke({"question": orig_q, "document": d.page_content})
+            print(f"---DOCUMENT {i+1} SCORE: {score.binary_score}---")
+            if score.binary_score == "yes":
+                filtered_docs.append(d)
+        except Exception as e:
+            print(f"---DOCUMENT {i+1} GRADING ERROR: {str(e)}---")
+            filtered_docs.append(d) # Fallback to including it
             
     if not filtered_docs:
         thoughts.append(f"No documents found mentioning specific constraints of: '{orig_q}'")
@@ -115,7 +120,7 @@ def grade_documents(state):
         
     return {"documents": filtered_docs, "thoughts": thoughts}
 
-def generate(state):
+async def generate(state):
     """Generate answer"""
     print("---GENERATING---")
     question = state["question"]
@@ -123,7 +128,7 @@ def generate(state):
     thoughts = state["thoughts"]
     thoughts.append("Synthesizing answer based strictly on course material...")
     
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+    llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0)
     
     def format_docs(docs):
         formatted = []
@@ -133,6 +138,7 @@ def generate(state):
             formatted.append(f"SOURCE: {name} (Page {page})\nCONTENT: {doc.page_content}")
         return "\n\n".join(formatted)
 
+    # Note: System prompt remains same
     prompt_template = """You are a Senior AI Research Scientist and Architect acting as a technical tutor for the SupportVector Course. 
     Your goal is to provide high-fidelity, academically rigorous explanations based EXCLUSIVELY on the provided context.
 
@@ -166,23 +172,22 @@ def generate(state):
     rag_chain = prompt | llm | StrOutputParser()
     
     if not documents:
-        # Strictly use the original intent for the refusal
         user_intent = state.get("original_question", question)
         generation = f"I'm sorry, I could not find any specific information about '{user_intent}' in the course materials. Based on my database, the materials primarily cover LLM architecture, Semantic Search, and Vector Embeddings for Weeks 1 through 4. I do not have info for other weeks."
     else:
-        generation = rag_chain.invoke({"context": format_docs(documents), "question": question})
+        generation = await rag_chain.ainvoke({"context": format_docs(documents), "question": question})
         
     retry_count = state.get("retry_count", 0) + 1
     return {"generation": generation, "thoughts": thoughts, "retry_count": retry_count}
 
-def transform_query(state):
+async def transform_query(state):
     """Transform the query to produce a better search."""
     print("---TRANSFORMING QUERY---")
     question = state["question"]
     thoughts = state["thoughts"]
     thoughts.append("Optimizing search query for better results...")
     
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+    llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0)
     system = """You are a query assistant that rewrites a user question to better retrieve info from a vector store. \n
     CRITICAL: YOU MUST PRESERVE all specific constraints (Week numbers, specific terms like 'manifolds', 'transformers', etc.). \n
     Do not generalize the question too much. If the user asks for Week 5, the new query MUST include 'Week 5'."""
@@ -191,7 +196,7 @@ def transform_query(state):
         ("human", "Original question: {question}"),
     ])
     question_rewriter = re_write_prompt | llm | StrOutputParser()
-    better_question = question_rewriter.invoke({"question": question})
+    better_question = await question_rewriter.ainvoke({"question": question})
     
     retry_count = state.get("retry_count", 0) + 1
     return {"question": better_question, "thoughts": thoughts, "retry_count": retry_count}
@@ -206,7 +211,7 @@ def decide_to_generate(state):
         return "transform_query"
     return "generate"
 
-def grade_generation_v_documents_and_question(state):
+async def grade_generation_v_documents_and_question(state):
     """Determines whether the generation is grounded in the document and answers question."""
     print("---CHECKING HALLUCINATIONS---")
     question = state["question"]
@@ -214,7 +219,7 @@ def grade_generation_v_documents_and_question(state):
     generation = state["generation"]
     thoughts = state["thoughts"]
     
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+    llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0)
     
     # Hallucination Grader
     hallucination_grader = llm.with_structured_output(GradeHallucination)
@@ -237,11 +242,23 @@ def grade_generation_v_documents_and_question(state):
 
     # Check original question for validity
     orig_q = state.get("original_question", question)
-    score = hall_chain.invoke({"documents": documents, "generation": generation})
+    print("---INVOKING HALLUCINATION GRADER---")
+    try:
+        score = await hall_chain.ainvoke({"documents": documents, "generation": generation})
+        print(f"---HALLUCINATION SCORE: {score.binary_score}---")
+    except Exception as e:
+        print(f"---HALLUCINATION GRADER ERROR: {str(e)}---")
+        return "useful" # Fallback
     
     if score.binary_score == "yes":
         thoughts.append("No hallucinations detected. Checking if specific question is answered...")
-        score = answer_chain.invoke({"question": orig_q, "generation": generation})
+        print("---INVOKING ANSWER GRADER---")
+        try:
+            score = await answer_chain.ainvoke({"question": orig_q, "generation": generation})
+            print(f"---ANSWER SCORE: {score.binary_score}---")
+        except Exception as e:
+            print(f"---ANSWER GRADER ERROR: {str(e)}---")
+            return "useful" # Fallback
         if score.binary_score == "yes":
             thoughts.append("Success! Final answer verified.")
             return "useful"
