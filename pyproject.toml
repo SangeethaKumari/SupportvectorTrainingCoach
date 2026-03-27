@@ -1,0 +1,30 @@
+# pyproject.toml
+[project]
+name = "supportvector-training-coach"
+version = "0.1.0"
+description = "Support‑vector training coach backend"
+authors = [{name = "Sangeetha Kumari", email = "you@example.com"}]
+requires-python = ">=3.9"
+
+# Pull in the same deps you have in requirements.txt
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi>=0.128.8",
+    "ipython>=8.18.1",
+    "langchain-google-genai>=2.1.12",
+    # copy each line from backend/requirements.txt, e.g.:
+    "langchain-qdrant>=0.2.1",
+    "langgraph>=0.6.11",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    # …
+    "uvicorn>=0.39.0",
+]
+
+# Optional: specify optional dev dependencies
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]

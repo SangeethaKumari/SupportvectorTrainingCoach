@@ -57,15 +57,19 @@ graph TD
 git clone https://github.com/SangeethaKumari/SupportvectorTrainingCoach.git
 cd SupportvectorTrainingCoach
 
-# Setup Backend
+# Setup Backend, if uv us is not set up
 pip install -r backend/requirements.txt
+
+## if uv is set up
+uv sync          # reads pyproject.toml → creates uv.lock →installs
+uv run backend/graph.py   # runs the script with the managed venv
 
 # Setup Frontend
 cd frontend
 npm install
 cd ..
 ```
-
+### If uv is not set up
 ### 2. Environment Configuration
 1. Copy the example environment file:
 ```bash
@@ -106,60 +110,5 @@ python test_agent.py
 ```
 
 
-graph.py
 
-Here is the step-by-step technical flow:
 
-1. The Entry Point: 
-
-retrieve
-The graph begins by converting the user's natural language question into a vector and searching the Qdrant database. It retrieves the top technical chunks from your course PDFs.
-
-Next Node: 
-
-grade_documents
-2. The Quality Control: 
-
-grade_documents
-This is where the "Agentic" part starts. A specialized Gemini 2.0 grader examines every retrieved chunk.
-
-Logic: It looks for a semantic match. If you ask for "Week 5" and the chunk is about "Vectors in Week 1," the grader marks it as irrelevant.
-Decision (Conditional Edge):
-If relevant chunks exist: Proceed to 
-
-generate
-.
-If no relevant chunks exist: Proceed to 
-
-transform_query
-.
-3. The Recovery Step: 
-
-transform_query
-If the initial search failed, the agent doesn't give up. It asks Gemini to rewrite the user's query for better retrieval (e.g., "What is in Week 5?" might become "SupportVector course curriculum week 5 syllabus").
-
-Next Node: It loops back to 
-
-retrieve
- to try the search again with the new query.
-4. The Production: 
-
-generate
-The agent takes the verified chunks and synthesizes a technical answer. It is strictly instructed to use only the provided context and to provide citations.
-
-Next Node: 
-
-grade_generation_v_documents_and_question
- (The Double-Check).
-5. The "Zero-Hallucination" Gate
-This is a complex conditional edge that performs two separate audits on the answer:
-
-Hallucination Audit: It compares the answer to the source facts. If Gemini detects a fact not present in the sources, it sends the agent back to 
-
-generate
- to "re-draft" the answer.
-Usefulness Audit: It checks if the answer actually satisfies the user's question. If the answer is general but the question was specific, it sends the agent back to 
-
-transform_query
- to find better data.
-Exit: Only when the answer is both grounded and useful does the graph reach the END.

@@ -84,10 +84,12 @@ export default function ChatbotPage() {
 
             try {
               const data = JSON.parse(jsonStr);
+              if (data.type === 'metadata' || data.type === 'thought') {
+                console.log("[DEBUG] Frontend received:", data);
+              }
 
               setMessages(prev => {
                 const newMessages = [...prev];
-                // ALWAYS update the very last message if it's from the agent
                 const lastIdx = newMessages.length - 1;
                 if (lastIdx < 0 || newMessages[lastIdx].role !== 'agent') return prev;
 
@@ -100,7 +102,16 @@ export default function ChatbotPage() {
                     msg.thoughts = [...(msg.thoughts || []), data.thought];
                   }
                 } else if (data.type === 'metadata') {
-                  if (data.sources) msg.sources = data.sources;
+                  if (data.sources) {
+                    const existing = msg.sources || [];
+                    const uniqueNew = data.sources.filter((ns: any) => 
+                      !existing.some((es: any) => es.source === ns.source && es.page === ns.page)
+                    );
+                    if (uniqueNew.length > 0) {
+                      msg.sources = [...existing, ...uniqueNew];
+                      console.log("[DEBUG] Updated sources list:", msg.sources);
+                    }
+                  }
                   if (data.thoughts) msg.thoughts = data.thoughts;
                 }
 

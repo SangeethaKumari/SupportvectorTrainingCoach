@@ -64,8 +64,11 @@ async def retrieve(state):
             collection_name=collection_name,
             embedding=embeddings,
         )
+        #
         retriever = vectorstore.as_retriever()
-        documents = await retriever.ainvoke(question)
+        # converts user query to vector and 
+        # Takes that vector and searches Qdrant for nearest neighbours
+        documents = await retriever.ainvoke(question) 
         
         # Ensure original_question is set from the start
         orig_q = state.get("original_question") or question
@@ -169,16 +172,31 @@ async def generate(state):
     Technical Answer:"""
     prompt = ChatPromptTemplate.from_template(prompt_template)
     
-    rag_chain = prompt | llm | StrOutputParser()
+    rag_chain = prompt | llm.with_config({"tags": ["final_answer"]}) | StrOutputParser()
     
     if not documents:
         user_intent = state.get("original_question", question)
         generation = f"I'm sorry, I could not find any specific information about '{user_intent}' in the course materials. Based on my database, the materials primarily cover LLM architecture, Semantic Search, and Vector Embeddings for Weeks 1 through 4. I do not have info for other weeks."
+        source_names = []
     else:
         generation = await rag_chain.ainvoke({"context": format_docs(documents), "question": question})
-        
+        # Build list of source info dicts
+        source_names = []
+        for doc in documents:
+            source_names.append({
+                "page": doc.metadata.get("page", "N/A"),
+                "source": os.path.basename(doc.metadata.get("source", "Unknown")),
+                "content": doc.page_content[:200] + "...",
+            })
+        # Append simple filenames list to answer for readability
+        if source_names:
+            filenames = [src["source"] for src in source_names]
+            generation += f"\n\nSources: {', '.join(filenames)}"
+        # Debug print to terminal
+        print("[DEBUG] Sources used in answer:", source_names)
+    
     retry_count = state.get("retry_count", 0) + 1
-    return {"generation": generation, "thoughts": thoughts, "retry_count": retry_count}
+    return {"generation": generation, "thoughts": thoughts, "retry_count": retry_count, "sources": source_names}
 
 async def transform_query(state):
     """Transform the query to produce a better search."""

@@ -46,33 +46,49 @@ async def chat(request: ChatRequest):
             
             async for event in graph_app.astream_events(inputs, version="v2"):
                 kind = event["event"]
-                node_name = event.get("metadata", {}).get("langgraph_node", "")
+                # AGGRESSIVE DEBUG: Print every event or use a sample
+                # print(f"[EVENT DEBUG] kind={kind}, name={event.get('name')}, node_meta={event.get('metadata', {}).get('langgraph_node')}")
                 
-                # print(f"DEBUG: event={kind}, node={node_name}")
-
-                # 1. Capture Thoughts and Sources from node results
-                if kind == "on_node_end":
-                    data = event["data"]["output"]
-                    if not isinstance(data, dict):
-                        continue
+                # Check for node end events
+                node_name = event.get("metadata", {}).get("langgraph_node") or event.get("name")
+                
+                # Check for node/chain end events to capture output data
+                is_end_event = kind in ["on_node_end", "on_chain_end"]
+                node_name = event.get("metadata", {}).get("langgraph_node") or event.get("name")
+                
+                if is_end_event:
+                    data = event["data"].get("output")
+                    if data and isinstance(data, dict):
+                        # Catch thoughts
+                        if "thoughts" in data and data["thoughts"]:
+                            yield f"data: {json.dumps({'type': 'thought', 'thought': data['thoughts'][-1]})}\n\n"
                         
-                    if "thoughts" in data and data["thoughts"]:
-                        yield f"data: {json.dumps({'type': 'thought', 'thought': data['thoughts'][-1]})}\n\n"
-                    
-                    if node_name == "grade_documents" and "documents" in data:
-                        sources = []
-                        for doc in data["documents"]:
-                            path = doc.metadata.get("source", "Unknown")
-                            sources.append({
-                                "page": doc.metadata.get("page", "N/A"),
-                                "source": os.path.basename(path),
-                                "content": doc.page_content[:200] + "..."
-                            })
-                        yield f"data: {json.dumps({'type': 'metadata', 'sources': sources})}\n\n"
+                        # Catch sources from grade_documents or similar (LangChain docs format)
+                        if "documents" in data:
+                            doc_sources = []
+                            for doc in data["documents"]:
+                                try:
+                                    path = doc.metadata.get("source", "Unknown")
+                                    doc_sources.append({
+                                        "page": doc.metadata.get("page", "N/A"),
+                                        "source": os.path.basename(path),
+                                        "content": doc.page_content[:200] + "..."
+                                    })
+                                except:
+                                    continue
+                            if doc_sources:
+                                print(f"[DEBUG] Yielding docs from {node_name}")
+                                yield f"data: {json.dumps({'type': 'metadata', 'sources': doc_sources})}\n\n"
+                        
+                        # Catch sources from generate node (our custom format)
+                        if "sources" in data and data["sources"]:
+                            print(f"[DEBUG] Yielding sources from {node_name}")
+                            yield f"data: {json.dumps({'type': 'metadata', 'sources': data['sources']})}\n\n"
 
                 # 2. Capture Tokens from the 'generate' node
                 elif kind in ["on_chat_model_stream", "on_parser_stream"]:
-                    if node_name == "generate":
+                    tags = event.get("tags", [])
+                    if node_name == "generate" and "final_answer" in tags:
                         chunk = event["data"].get("chunk")
                         raw_content = ""
                         

@@ -32,6 +32,11 @@ def ingest_pdfs(data_dir="./data"):
         connection_args = {"path": "./qdrant_db"}
     
     # 2. Setup Embeddings
+    #instantiates the GoogleGenerativeAIEmbeddings to create embeddings
+    #gemini-embedding-001 is the model used to create embeddings
+    #this model is used to create embeddings for the chunks of text
+    #embeddings are used to create a vector representation of the chunks of text
+    #this vector representation is used to create a vector database
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     
     # 3. Load and Split Documents
@@ -42,28 +47,35 @@ def ingest_pdfs(data_dir="./data"):
     for file in os.listdir(data_dir):
         if file.endswith(".pdf"):
             print(f"📄 Processing {file}...")
+            #instantiates the PyMuPDFLoader to load the pdf
             loader = PyMuPDFLoader(os.path.join(data_dir, file))
+            #loads the pdf
             docs = loader.load()
+            #appends the loaded pdf to the all_docs list
             all_docs.extend(docs)
             
     if not all_docs:
         print(f"❌ No PDF files found in {data_dir} directory.")
         return
-
+    #LangChain's default tool for splitting long text into smaller,
+    # semantically coherent chunks based on a list of separators
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=100,
-        add_start_index=True
+        add_start_index=True #adds the start index of the chunk to the chunk
     )
-    
+    #splits the loaded pdf into chunks
     chunks = text_splitter.split_documents(all_docs)
     print(f"✅ Split into {len(chunks)} chunks.")
 
     # 4. Index into Qdrant
-    print(f"� Upserting to Qdrant (this may take a few minutes)...")
+    print(f" Upserting to Qdrant (this may take a few minutes)...")
     # Close the client before VectorStore opens its own connection
     client.close()
 
+    #upserts the chunks into Qdrant
+    #force_recreate=True fixes the 'dimension mismatch' error
+    
     QdrantVectorStore.from_documents(
         chunks,
         embeddings,
